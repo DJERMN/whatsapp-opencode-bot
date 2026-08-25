@@ -1,0 +1,21 @@
+{
+  "name": "whatsapp-opencode-bot",
+  "version": "0.1.0",
+  "description": "Beantwortet WhatsApp-Nachrichten automatisch mit opencode als KI-Gehirn",
+  "private": true,
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "baileys": "6.7.24",
+    "dotenv": "^16.4.5",
+    "pino": "^9.6.0",
+    "qrcode-terminal": "^0.12.0"
+  }
+}
