@@ -40,6 +40,7 @@ export async function handleMessage(conn, msg) {
         const evt = await createCalendarEvent({
           text: action.text,
           at: action.at,
+          until: action.until,
           durationMinutes: config.calendarDurationMinutes,
           attendees: wantsSync ? config.syncAttendees : [],
           sendInvites: wantsSync,

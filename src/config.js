@@ -19,6 +19,8 @@ export const config = {
   brainTimeoutMs: num('BRAIN_TIMEOUT_MS', 120_000),
   aiApiUrl: str('AI_API_URL'),
   aiApiKey: str('AI_API_KEY'),
+  aiApiKeys: str('AI_API_KEYS', '')
+    .split(',').map((s) => s.trim()).filter(Boolean),
   aiModel: str('AI_MODEL', 'deepseek-v4-flash'),
   aiAuth: str('AI_API_AUTH', 'azure').toLowerCase(),
   schedulerEnabled: str('SCHEDULER_ENABLED', 'true').toLowerCase() === 'true',

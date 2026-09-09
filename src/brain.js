@@ -16,43 +16,79 @@ function parseAction(reply) {
   }
 }
 
+function parseRetrySeconds(body) {
+  const m = body.match(/retry in ([\d.]+)s/i)
+  const secs = m ? Number(m[1]) : 0
+  return Math.min(Math.max(secs * 1000 || 4000, 2000), 90000)
+}
+
 async function callApi(messages) {
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), config.brainTimeoutMs)
+  let attempt = 0
+  let keyIndex = 0
+  const keys = config.aiApiKeys.length ? config.aiApiKeys : [config.aiApiKey].filter(Boolean)
 
-  try {
-    const res = await fetch(config.aiApiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(config.aiAuth === 'bearer'
-          ? { Authorization: `Bearer ${config.aiApiKey}` }
-          : { 'api-key': config.aiApiKey }),
-      },
-      body: JSON.stringify({
-        model: config.aiModel,
-        messages,
-        temperature: 0.7,
-        max_tokens: 1000,
-      }),
-      signal: controller.signal,
-    })
-
-    if (!res.ok) {
-      const body = await res.text().catch(() => '')
-      throw new Error(`LLM-API ${res.status}: ${body.slice(0, 200)}`)
-    }
-
-    const data = await res.json()
-    const content = data?.choices?.[0]?.message?.content
-    if (!content) throw new Error('LLM-API lieferte leere Antwort')
-    return content.trim()
-  } catch (err) {
-    if (err.name === 'AbortError') throw new Error(`LLM-API hat ${config.brainTimeoutMs}ms ueberschritten`)
-    throw err
-  } finally {
-    clearTimeout(timeout)
+  function currentKey() {
+    return keys[keyIndex % keys.length]
   }
+
+  async function runAttempt() {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), config.brainTimeoutMs)
+
+    try {
+      const res = await fetch(config.aiApiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(config.aiAuth === 'bearer'
+            ? { Authorization: `Bearer ${currentKey()}` }
+            : { 'api-key': currentKey() }),
+        },
+        body: JSON.stringify({
+          model: config.aiModel,
+          messages,
+          temperature: 0.7,
+          max_tokens: 1000,
+        }),
+        signal: controller.signal,
+      })
+
+      if (!res.ok) {
+        const body = await res.text().catch(() => '')
+        const status = res.status
+        const MAX_ATTEMPTS = Math.max(keys.length, 3)
+        if (status === 429 && attempt < MAX_ATTEMPTS) {
+          if (keys.length > 1) {
+            keyIndex += 1
+          }
+          attempt += 1
+          clearTimeout(timeout)
+          const wait = keys.length > 1 ? 0 : parseRetrySeconds(body)
+          if (wait) await new Promise((r) => setTimeout(r, wait))
+          return runAttempt()
+        }
+        if (status === 503 && attempt < 3) {
+          clearTimeout(timeout)
+          attempt += 1
+          await new Promise((r) => setTimeout(r, 2500))
+          return runAttempt()
+        }
+        throw new Error(`LLM-API ${status}: ${body.slice(0, 200)}`)
+      }
+
+      const data = await res.json()
+      const content = data?.choices?.[0]?.message?.content
+      if (!content) throw new Error('LLM-API lieferte leere Antwort')
+      return content.trim()
+    } catch (err) {
+      if (err.name === 'AbortError') throw new Error(`LLM-API hat ${config.brainTimeoutMs}ms ueberschritten`)
+      throw err
+    } finally {
+      clearTimeout(timeout)
+    }
+  }
+
+  return runAttempt()
 }
 
 function cleanOutput(raw) {
@@ -135,7 +171,7 @@ export async function askOpencode({ messageText, chatName, chatId }) {
     apptBlock,
     '',
     'Regeln:',
-    '1. Kalender (Google Kalender eintragen): ACTION: {"action":"cal_add","text":"<was>","at":"YYYY-MM-DD HH:MM"}',
+    '1. Kalender (Google Kalender eintragen): ACTION: {"action":"cal_add","text":"<was>","at":"YYYY-MM-DD HH:MM","until":"HH:MM"} – "until" nur setzen, wenn der Nutzer eine Endzeit nennt ("bis XX Uhr")',
     '   Wenn der Nutzer #sync erwaehnt, wird automatisch eingeladen - das handled der Handler, keine extra Action noetig.',
     '2. Kalender anzeigen: ACTION: {"action":"cal_list"}',
     '3. Kalender-Eintrag loeschen: ACTION: {"action":"cal_delete","id":"<id>"}',

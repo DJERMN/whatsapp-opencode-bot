@@ -105,6 +105,13 @@ function parseWhen(at) {
   return { y, mo, d, h, mi }
 }
 
+function parseClock(end) {
+  if (!end) return null
+  const m = String(end).match(/(\d{1,2}):(\d{2})/)
+  if (!m) return null
+  return { h: Number(m[1]), mi: Number(m[2]) }
+}
+
 export async function calendarTest() {
   const res = await api('/users/me/calendarList')
   return (res.items ?? []).map((c) => ({
@@ -114,13 +121,22 @@ export async function calendarTest() {
   }))
 }
 
-export async function createCalendarEvent({ text, at, durationMinutes = 60, calendarId = config.calendarId, attendees = [], sendInvites = false }) {
+export async function createCalendarEvent({ text, at, until, durationMinutes = 60, calendarId = config.calendarId, attendees = [], sendInvites = false }) {
   const w = parseWhen(at)
   if (!w) return null
   const start = `${w.y}-${w.mo}-${w.d}T${w.h}:${w.mi}:00`
-  const endDate = new Date(`${start}.000Z`)
-  endDate.setUTCMinutes(endDate.getUTCMinutes() + durationMinutes)
-  const end = endDate.toISOString().replace(/\.\d{3}Z$/, 'Z').slice(0, 19) + 'Z'
+
+  const endClock = until ? parseClock(until) : null
+  let end
+  if (endClock && endClock.h >= Number(w.h)) {
+    end = `${w.y}-${w.mo}-${w.d}T${String(endClock.h).padStart(2, '0')}:${String(endClock.mi).padStart(2, '0')}:00`
+  } else {
+    let eh = Number(w.h)
+    let emi = Number(w.mi) + durationMinutes
+    eh += Math.floor(emi / 60)
+    emi %= 60
+    end = `${w.y}-${w.mo}-${w.d}T${String(eh).padStart(2, '0')}:${String(emi).padStart(2, '0')}:00`
+  }
 
   const event = {
     summary: text,
@@ -162,7 +178,7 @@ export function formatUpcoming(items) {
   return items
     .map((e) => {
       const d = new Date(e.start)
-      const label = d.toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })
+      const label = d.toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short', timeZone: config.calendarTimezone })
       return `- ${label}: ${e.summary}`
     })
     .join('\n')
