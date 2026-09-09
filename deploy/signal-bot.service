@@ -1,0 +1,17 @@
+[Unit]
+Description=Signal Automation Bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=bariser
+Group=bariser
+WorkingDirectory=/opt/signal-bot
+ExecStart=/usr/bin/node /opt/signal-bot/src/index.js
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target

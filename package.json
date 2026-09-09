@@ -1,7 +1,7 @@
 {
-  "name": "whatsapp-opencode-bot",
-  "version": "0.1.0",
-  "description": "Beantwortet WhatsApp-Nachrichten automatisch mit opencode als KI-Gehirn",
+  "name": "signal-automation-bot",
+  "version": "0.2.0",
+  "description": "Beantwortet Signal-Nachrichten automatisch mit LLM und verwaltet Erinnerungen/Termine per Signal",
   "private": true,
   "type": "module",
   "main": "src/index.js",
@@ -13,9 +13,6 @@
     "node": ">=20"
   },
   "dependencies": {
-    "baileys": "6.7.24",
-    "dotenv": "^16.4.5",
-    "pino": "^9.6.0",
-    "qrcode-terminal": "^0.12.0"
+    "dotenv": "^16.4.5"
   }
 }

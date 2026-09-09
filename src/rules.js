@@ -16,7 +16,7 @@ export function isInReplyWindow(now = new Date()) {
 
 export function isAllowed(jid) {
   if (config.allowedNumbers.length === 0) return true
-  const number = jid.split('@')[0].split(':')[0]
+  const number = jid.replace(/[^0-9]/g, '')
   return config.allowedNumbers.includes(number)
 }
 
